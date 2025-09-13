@@ -1,4 +1,6 @@
 # Core ML Libraries
+# Note: Install PyTorch with CUDA support on Lambda Labs:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 torch>=1.12.1,<2.0.0
 transformers>=4.30.2,<5.0.0
 huggingface-hub>=0.15.1
@@ -30,3 +32,7 @@ mlflow>=2.0.0
 pytest>=7.0.0
 jupyter>=1.0.0
 ipykernel>=6.0.0
+
+# GPU Monitoring (for Lambda Labs)
+gpustat>=1.1.0
+nvidia-ml-py3>=7.352.0
