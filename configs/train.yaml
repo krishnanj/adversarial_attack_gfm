@@ -1,0 +1,39 @@
+# Training configuration for DNABERT-2 adversarial attack research
+
+# Dataset configuration
+dataset:
+  name: "promoter"  # Options: "promoter", "enhancer", "splice"
+  path: "data/raw/GUE/prom/prom_300_all/train.csv"
+  max_length: 300  # GUE promoter sequences are 300bp
+  
+# Model configuration
+model:
+  name: "zhihan1996/DNABERT-2-117M"
+  freeze_encoder: true  # Freeze DNABERT-2 encoder, only train classification head
+  num_classes: 2
+  
+# Training configuration
+training:
+  batch_size: 16  # Smaller batch size for larger sequences (300bp)
+  learning_rate: 0.001  # Higher LR for classification head only
+  num_epochs: 3  # Fewer epochs for larger dataset
+  weight_decay: 0.01
+  warmup_steps: 500  # More warmup steps for larger dataset
+  
+# Data splits
+data_splits:
+  test_size: 0.2
+  val_size: 0.1
+  random_state: 42
+  
+# Output configuration
+output:
+  model_dir: "models/baseline"
+  log_dir: "logs"
+  save_best_model: true
+  
+# Reproducibility
+seed: 42
+
+# Device configuration
+device: "auto"  # "auto", "cpu", "cuda"

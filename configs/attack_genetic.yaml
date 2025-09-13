@@ -1,0 +1,43 @@
+# Genetic Algorithm-based Adversarial Attack Configuration
+
+# Attack parameters
+attack:
+  name: "genetic_algorithm"
+  target_model: "models/baseline/checkpoint_epoch_3.pt"  # Best baseline model
+  dataset: "promoter"  # Dataset to attack
+  test_samples: 20  # Number of test samples to attack
+  max_perturbations: 5  # Maximum nucleotide changes allowed
+  
+# Genetic algorithm parameters
+genetic_algorithm:
+  population_size: 50  # Initial population size
+  max_generations: 100  # Maximum number of generations
+  elite_ratio: 0.2  # Top 20% kept as elite
+  mutation_rate: 0.1  # Probability of mutation per nucleotide
+  crossover_rate: 0.8  # Probability of crossover
+  convergence_threshold: 10  # Stop if no improvement for N generations
+  
+# Fitness function weights
+fitness:
+  confidence_drop_weight: 1.0  # Primary: maximize model confidence drop
+  perturbation_penalty: 0.1  # Penalty for too many changes
+  biological_penalty: 0.2  # Penalty for biologically implausible changes
+  
+# Biological constraints
+biological_constraints:
+  max_gc_deviation: 0.05  # Max GC content deviation (±5%)
+  preserve_motifs: true  # Try to preserve known regulatory motifs
+  prefer_transitions: true  # Prefer A↔G, C↔T over transversions
+  avoid_stop_codons: true  # Avoid creating stop codons
+  
+# Attack success criteria
+success_criteria:
+  confidence_threshold: 0.5  # Attack successful if confidence drops below 50%
+  min_confidence_drop: 0.01  # Minimum confidence drop to consider successful (1%)
+  
+# Output configuration
+output:
+  save_adversarial_sequences: true
+  save_attack_statistics: true
+  output_dir: "data/adversarial/genetic_attack"
+  detailed_logging: true

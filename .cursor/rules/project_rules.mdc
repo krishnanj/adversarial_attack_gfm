@@ -1,0 +1,49 @@
+---
+description: Project rules for adversarial attack on gene foundation models research
+globs: ["**/*.py", "**/*.yaml", "**/*.yml", "**/*.md"]
+alwaysApply: true
+---
+
+# Cursor Project Rules for Adversarial Attack on Gene Foundation Models
+
+## Code Development Rules
+
+1. **Modify Existing Scripts**: When changes are requested, ALWAYS modify existing scripts unless explicitly told to create new ones. Do not create piles of dead scripts - it becomes a maintenance nightmare later.
+
+2. **Clean Communication**: 
+   - Do not use icons, emojis, or strange fonts
+   - Avoid excessive markdown bolding
+   - Write and communicate like normal people
+   - Keep documentation clear and professional
+
+3. **Python Code Standards**:
+   - Always use well-documented Python scripts with comprehensive type hints for inputs and outputs
+   - Include detailed docstrings for all functions and classes
+   - Implement proper logging mechanisms for debugging and monitoring
+   - Follow PEP 8 style guidelines
+   - Use meaningful variable and function names
+
+4. **Documentation Requirements**:
+   - All functions must have docstrings explaining purpose, parameters, return values, and any exceptions
+   - Type hints required for function parameters and return values
+   - Logging statements for key operations and error conditions
+   - Inline comments for complex logic
+
+5. **Project Structure**:
+   - Maintain the established directory structure
+   - Keep configuration files in `configs/`
+   - Store data in appropriate `data/` subdirectories
+   - Save models in `models/` with clear naming conventions
+
+6. **Version Control**:
+   - Commit changes frequently with meaningful commit messages
+   - Use the established `.gitignore` patterns
+   - Keep the repository clean and organized
+
+## Research Focus
+
+This project investigates adversarial robustness in DNABERT-2 for genomic sequence classification. Focus on:
+- Minimal nucleotide perturbations
+- Biological plausibility constraints
+- Iterative adversarial training
+- Robust evaluation metrics
