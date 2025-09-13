@@ -1,7 +1,7 @@
 """
-Genetic Algorithm-based Adversarial Attack on DNABERT-2
+Genetic Algorithm-based Adversarial Attack on DNABERT-2 using DEAP
 
-This module implements a genetic algorithm approach to generate adversarial
+This module implements a genetic algorithm approach using DEAP to generate adversarial
 sequences that maintain biological plausibility while fooling the model.
 """
 
@@ -13,28 +13,23 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from typing import List, Tuple, Dict, Any, Optional
-from dataclasses import dataclass
-from collections import Counter
 import yaml
 from tqdm import tqdm
+
+# DEAP for genetic algorithms
+from deap import base, creator, tools, algorithms
+
+# Bioinformatics libraries
+from Bio.SeqUtils import gc_fraction
+from Levenshtein import hamming
 
 from transformers import AutoTokenizer, AutoModel
 from utils import set_seed, load_config
 from train_forward import DNABERT2Classifier
 
 
-@dataclass
-class Individual:
-    """Represents a single individual in the genetic algorithm population."""
-    sequence: str
-    fitness: float = 0.0
-    perturbations: int = 0
-    confidence_drop: float = 0.0
-    biological_score: float = 1.0
-
-
 class BiologicalConstraints:
-    """Handles biological plausibility constraints for genomic sequences."""
+    """Handles biological plausibility constraints for genomic sequences using BioPython."""
     
     def __init__(self, config: Dict[str, Any]):
         self.max_gc_deviation = config['biological_constraints']['max_gc_deviation']
@@ -51,9 +46,8 @@ class BiologicalConstraints:
         self.transition_prob = 0.7 if self.prefer_transitions else 0.5
     
     def calculate_gc_content(self, sequence: str) -> float:
-        """Calculate GC content of a sequence."""
-        gc_count = sequence.count('G') + sequence.count('C')
-        return gc_count / len(sequence) if len(sequence) > 0 else 0.0
+        """Calculate GC content using BioPython."""
+        return gc_fraction(sequence)  # BioPython returns fraction (0-1)
     
     def gc_content_valid(self, original_seq: str, mutated_seq: str) -> bool:
         """Check if GC content deviation is within acceptable limits."""
@@ -120,7 +114,7 @@ class BiologicalConstraints:
 
 
 class GeneticAdversarialAttack:
-    """Genetic algorithm-based adversarial attack on DNABERT-2."""
+    """Genetic algorithm-based adversarial attack on DNABERT-2 using DEAP."""
     
     def __init__(self, config_path: str):
         """Initialize the genetic adversarial attack."""
@@ -139,6 +133,9 @@ class GeneticAdversarialAttack:
         
         self._load_model()
         self._load_tokenizer()
+        
+        # Setup DEAP framework
+        self._setup_deap()
         
         # Create output directory
         os.makedirs(self.config['output']['output_dir'], exist_ok=True)
@@ -165,6 +162,68 @@ class GeneticAdversarialAttack:
         self.tokenizer = AutoTokenizer.from_pretrained("zhihan1996/DNABERT-2-117M")
         self.logger.info("Tokenizer loaded successfully")
     
+    def _setup_deap(self):
+        """Setup DEAP framework for genetic algorithm."""
+        # Create fitness class (maximize fitness)
+        creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+        
+        # Create individual class (list of positions to mutate)
+        creator.create("Individual", list, fitness=creator.FitnessMax)
+        
+        # Create toolbox
+        self.toolbox = base.Toolbox()
+        
+        # Register genetic operators
+        self.toolbox.register("mutate", self._deap_mutate)
+        self.toolbox.register("mate", self._deap_crossover)
+        self.toolbox.register("select", tools.selTournament, tournsize=3)
+        
+        # Statistics
+        self.stats = tools.Statistics(lambda ind: ind.fitness.values)
+        self.stats.register("avg", np.mean)
+        self.stats.register("std", np.std)
+        self.stats.register("min", np.min)
+        self.stats.register("max", np.max)
+    
+    def _deap_mutate(self, individual):
+        """DEAP mutation operator with adaptive mutation strategy."""
+        # Adaptive mutation: more mutations for better exploration
+        max_mutations = self.config['attack']['max_perturbations']
+        num_mutations = random.randint(1, max_mutations)
+        
+        # Use different mutation strategies
+        mutation_strategy = random.choice(['random', 'focused', 'aggressive'])
+        
+        if mutation_strategy == 'random':
+            # Random mutations
+            positions = random.sample(range(len(individual)), min(num_mutations, len(individual)))
+            for pos in positions:
+                individual[pos] = random.randint(0, 3)
+                
+        elif mutation_strategy == 'focused':
+            # Focused mutations in a region
+            start_pos = random.randint(0, len(individual) - num_mutations)
+            for i in range(num_mutations):
+                pos = start_pos + i
+                if pos < len(individual):
+                    individual[pos] = random.randint(0, 3)
+                    
+        else:  # aggressive
+            # Aggressive mutations across the sequence
+            positions = random.sample(range(len(individual)), min(num_mutations * 2, len(individual)))
+            for pos in positions:
+                individual[pos] = random.randint(0, 3)
+        
+        return (individual,)
+    
+    def _deap_crossover(self, ind1, ind2):
+        """DEAP crossover operator."""
+        # Single point crossover
+        if len(ind1) > 1:
+            point = random.randint(1, len(ind1) - 1)
+            ind1[point:], ind2[point:] = ind2[point:], ind1[point:]
+        return ind1, ind2
+    
     def _mutate_sequence(self, sequence: str, num_mutations: int = 1) -> str:
         """Apply random mutations to a sequence."""
         nucleotides = ['A', 'T', 'C', 'G']
@@ -190,17 +249,24 @@ class GeneticAdversarialAttack:
         
         return ''.join(mutated)
     
-    def _calculate_fitness(self, original_seq: str, individual: Individual, 
-                          original_confidence: float) -> float:
-        """Calculate fitness score for an individual."""
+    def _calculate_fitness(self, original_seq: str, mutated_seq: str, 
+                          original_confidence: float) -> Tuple[float]:
+        """Calculate fitness score for a mutated sequence using DEAP format."""
+        # Get model prediction for mutated sequence
+        mutated_confidence, _ = self._predict_sequence(mutated_seq)
+        
+        # Calculate perturbations using Hamming distance
+        perturbations = hamming(original_seq, mutated_seq)
+        
         # Primary: confidence drop (we want to maximize this)
-        confidence_drop = original_confidence - individual.confidence_drop
+        confidence_drop = original_confidence - mutated_confidence
         
         # Secondary: perturbation penalty (we want to minimize perturbations)
-        perturbation_penalty = individual.perturbations * self.config['fitness']['perturbation_penalty']
+        perturbation_penalty = perturbations * self.config['fitness']['perturbation_penalty']
         
         # Tertiary: biological penalty (we want high biological score)
-        biological_penalty = (1.0 - individual.biological_score) * self.config['fitness']['biological_penalty']
+        biological_score = self.bio_constraints.calculate_biological_score(original_seq, mutated_seq)
+        biological_penalty = (1.0 - biological_score) * self.config['fitness']['biological_penalty']
         
         # Combined fitness (higher is better)
         # We want high confidence drop, low perturbations, high biological score
@@ -211,10 +277,10 @@ class GeneticAdversarialAttack:
         )
         
         # Ensure original sequence (no perturbations) has lower fitness than mutated sequences
-        if individual.perturbations == 0:
+        if perturbations == 0:
             fitness = -1.0  # Original sequence should have negative fitness
         
-        return fitness
+        return (fitness,)
     
     def _predict_sequence(self, sequence: str) -> Tuple[float, int]:
         """Get model prediction for a sequence."""
@@ -242,154 +308,103 @@ class GeneticAdversarialAttack:
             
             return confidence.item(), predicted_class.item()
     
-    def _initialize_population(self, original_seq: str, original_confidence: float) -> List[Individual]:
-        """Initialize the genetic algorithm population."""
-        population = []
-        population_size = self.config['genetic_algorithm']['population_size']
-        
-        # Add original sequence as first individual
-        original_individual = Individual(
-            sequence=original_seq,
-            fitness=0.0,
-            perturbations=0,
-            confidence_drop=original_confidence,
-            biological_score=1.0
-        )
-        population.append(original_individual)
-        
-        # Generate random variants
-        for _ in range(population_size - 1):
-            # Random number of mutations (1 to max_perturbations)
-            num_mutations = random.randint(1, self.config['attack']['max_perturbations'])
-            mutated_seq = self._mutate_sequence(original_seq, num_mutations)
-            
-            # Calculate properties
-            confidence, _ = self._predict_sequence(mutated_seq)
-            biological_score = self.bio_constraints.calculate_biological_score(original_seq, mutated_seq)
-            
-            individual = Individual(
-                sequence=mutated_seq,
-                perturbations=num_mutations,
-                confidence_drop=confidence,
-                biological_score=biological_score
-            )
-            
-            population.append(individual)
-        
-        # Calculate fitness for all individuals
-        for individual in population:
-            individual.fitness = self._calculate_fitness(original_seq, individual, original_confidence)
-        
-        return population
-    
-    def _selection(self, population: List[Individual]) -> List[Individual]:
-        """Select individuals for the next generation."""
-        elite_ratio = self.config['genetic_algorithm']['elite_ratio']
-        elite_count = int(len(population) * elite_ratio)
-        
-        # Sort by fitness (descending)
-        sorted_pop = sorted(population, key=lambda x: x.fitness, reverse=True)
-        
-        # Keep elite individuals
-        elite = sorted_pop[:elite_count]
-        
-        # Tournament selection for the rest
-        remaining_count = len(population) - elite_count
-        selected = []
-        
-        for _ in range(remaining_count):
-            # Tournament of size 3
-            tournament = random.sample(population, min(3, len(population)))
-            winner = max(tournament, key=lambda x: x.fitness)
-            selected.append(winner)
-        
-        return elite + selected
-    
-    def _crossover(self, parent1: Individual, parent2: Individual) -> Tuple[Individual, Individual]:
-        """Perform crossover between two parents."""
-        if random.random() > self.config['genetic_algorithm']['crossover_rate']:
-            return parent1, parent2
-        
-        seq1, seq2 = parent1.sequence, parent2.sequence
-        if len(seq1) != len(seq2):
-            return parent1, parent2
-        
-        # Single point crossover
-        crossover_point = random.randint(1, len(seq1) - 1)
-        
-        child1_seq = seq1[:crossover_point] + seq2[crossover_point:]
-        child2_seq = seq2[:crossover_point] + seq1[crossover_point:]
-        
-        # Create child individuals (fitness will be calculated later)
-        child1 = Individual(sequence=child1_seq)
-        child2 = Individual(sequence=child2_seq)
-        
-        return child1, child2
-    
-    def _mutate_individual(self, individual: Individual, original_seq: str) -> Individual:
-        """Apply mutation to an individual."""
-        if random.random() > self.config['genetic_algorithm']['mutation_rate']:
-            return individual
-        
-        # Random number of mutations (1 to max_perturbations)
-        num_mutations = random.randint(1, self.config['attack']['max_perturbations'])
-        mutated_seq = self._mutate_sequence(individual.sequence, num_mutations)
-        
-        # Calculate new properties
-        confidence, _ = self._predict_sequence(mutated_seq)
-        biological_score = self.bio_constraints.calculate_biological_score(original_seq, mutated_seq)
-        
-        mutated_individual = Individual(
-            sequence=mutated_seq,
-            perturbations=num_mutations,
-            confidence_drop=confidence,
-            biological_score=biological_score
-        )
-        
-        return mutated_individual
     
     def attack_sequence(self, sequence: str, true_label: int) -> Dict[str, Any]:
-        """Perform genetic algorithm attack on a single sequence."""
+        """Perform genetic algorithm attack on a single sequence using DEAP."""
         self.logger.info(f"Attacking sequence of length {len(sequence)}")
         
         # Get original prediction
         original_confidence, original_prediction = self._predict_sequence(sequence)
         
-        # Initialize population
-        population = self._initialize_population(sequence, original_confidence)
+        # Convert sequence to list of integers for DEAP
+        nucleotides = ['A', 'T', 'C', 'G']
+        nuc_to_int = {'A': 0, 'T': 1, 'C': 2, 'G': 3}
+        int_to_nuc = {0: 'A', 1: 'T', 2: 'C', 3: 'G'}
         
-        # Evolution loop
+        sequence_ints = [nuc_to_int[nuc] for nuc in sequence]
+        
+        # Create initial population
+        population_size = self.config['genetic_algorithm']['population_size']
+        population = []
+        
+        for _ in range(population_size):
+            # Create individual with random mutations
+            individual = sequence_ints.copy()
+            
+            # Vary mutation intensity for diversity
+            mutation_intensity = random.choice(['light', 'medium', 'heavy'])
+            if mutation_intensity == 'light':
+                num_mutations = random.randint(1, 3)
+            elif mutation_intensity == 'medium':
+                num_mutations = random.randint(2, 5)
+            else:  # heavy
+                num_mutations = random.randint(4, self.config['attack']['max_perturbations'])
+            
+            positions = random.sample(range(len(individual)), min(num_mutations, len(individual)))
+            
+            for pos in positions:
+                # Apply transition preference
+                if self.bio_constraints.prefer_transitions:
+                    transitions = {0: 3, 3: 0, 1: 2, 2: 1}  # A↔G, T↔C
+                    if random.random() < self.bio_constraints.transition_prob:
+                        individual[pos] = transitions.get(individual[pos], random.randint(0, 3))
+                    else:
+                        individual[pos] = random.randint(0, 3)
+                else:
+                    individual[pos] = random.randint(0, 3)
+            
+            # Create DEAP individual
+            deap_individual = creator.Individual(individual)
+            population.append(deap_individual)
+        
+        # Register evaluation function
+        def evaluate(individual):
+            mutated_seq = ''.join([int_to_nuc[i] for i in individual])
+            return self._calculate_fitness(sequence, mutated_seq, original_confidence)
+        
+        self.toolbox.register("evaluate", evaluate)
+        
+        # Evaluate initial population
+        fitnesses = list(map(self.toolbox.evaluate, population))
+        for ind, fit in zip(population, fitnesses):
+            ind.fitness.values = fit
+        
+        # Evolution loop using DEAP
         best_fitness = -float('inf')
         no_improvement_count = 0
         convergence_threshold = self.config['genetic_algorithm']['convergence_threshold']
         
         for generation in range(self.config['genetic_algorithm']['max_generations']):
-            # Selection
-            selected = self._selection(population)
+            # Select parents
+            offspring = self.toolbox.select(population, len(population))
+            offspring = list(map(self.toolbox.clone, offspring))
             
-            # Crossover and mutation
-            new_population = []
-            for i in range(0, len(selected), 2):
-                if i + 1 < len(selected):
-                    child1, child2 = self._crossover(selected[i], selected[i + 1])
-                    child1 = self._mutate_individual(child1, sequence)
-                    child2 = self._mutate_individual(child2, sequence)
-                    new_population.extend([child1, child2])
-                else:
-                    new_population.append(selected[i])
+            # Apply crossover and mutation
+            for child1, child2 in zip(offspring[::2], offspring[1::2]):
+                if random.random() < self.config['genetic_algorithm']['crossover_rate']:
+                    self.toolbox.mate(child1, child2)
+                    del child1.fitness.values
+                    del child2.fitness.values
             
-            # Calculate fitness for new individuals
-            for individual in new_population:
-                if individual.fitness == 0.0:  # New individual
-                    individual.fitness = self._calculate_fitness(sequence, individual, original_confidence)
+            # Apply mutation
+            for mutant in offspring:
+                if random.random() < self.config['genetic_algorithm']['mutation_rate']:
+                    self.toolbox.mutate(mutant)
+                    del mutant.fitness.values
             
-            # Update population
-            population = new_population
+            # Evaluate individuals with invalid fitness
+            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            fitnesses = map(self.toolbox.evaluate, invalid_ind)
+            for ind, fit in zip(invalid_ind, fitnesses):
+                ind.fitness.values = fit
+            
+            # Replace population
+            population[:] = offspring
             
             # Check for improvement
-            current_best = max(population, key=lambda x: x.fitness)
-            if current_best.fitness > best_fitness:
-                best_fitness = current_best.fitness
+            current_best = max(population, key=lambda x: x.fitness.values[0])
+            if current_best.fitness.values[0] > best_fitness:
+                best_fitness = current_best.fitness.values[0]
                 no_improvement_count = 0
             else:
                 no_improvement_count += 1
@@ -400,13 +415,20 @@ class GeneticAdversarialAttack:
                 break
         
         # Find best individual
-        best_individual = max(population, key=lambda x: x.fitness)
+        best_individual = max(population, key=lambda x: x.fitness.values[0])
+        best_sequence = ''.join([int_to_nuc[i] for i in best_individual])
+        
+        # Get final predictions
+        adversarial_confidence, adversarial_prediction = self._predict_sequence(best_sequence)
+        perturbations = hamming(sequence, best_sequence)
+        biological_score = self.bio_constraints.calculate_biological_score(sequence, best_sequence)
+        confidence_drop = original_confidence - adversarial_confidence
         
         # Check attack success
         success_criteria = self.config['success_criteria']
         attack_successful = (
-            best_individual.confidence_drop < success_criteria['confidence_threshold'] or
-            (original_confidence - best_individual.confidence_drop) >= success_criteria['min_confidence_drop']
+            adversarial_confidence < success_criteria['confidence_threshold'] or
+            confidence_drop >= success_criteria['min_confidence_drop']
         )
         
         return {
@@ -414,12 +436,12 @@ class GeneticAdversarialAttack:
             'original_confidence': original_confidence,
             'original_prediction': original_prediction,
             'true_label': true_label,
-            'adversarial_sequence': best_individual.sequence,
-            'adversarial_confidence': best_individual.confidence_drop,
-            'adversarial_prediction': self._predict_sequence(best_individual.sequence)[1],
-            'perturbations': best_individual.perturbations,
-            'biological_score': best_individual.biological_score,
-            'confidence_drop': original_confidence - best_individual.confidence_drop,
+            'adversarial_sequence': best_sequence,
+            'adversarial_confidence': adversarial_confidence,
+            'adversarial_prediction': adversarial_prediction,
+            'perturbations': perturbations,
+            'biological_score': biological_score,
+            'confidence_drop': confidence_drop,
             'attack_successful': attack_successful,
             'generations_used': generation + 1,
             'best_fitness': best_fitness

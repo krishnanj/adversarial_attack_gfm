@@ -6,11 +6,11 @@ peft>=0.4.0
 
 # Adversarial Attack Tools
 nevergrad>=0.6.0
-deap>=1.4.3
+deap>=2.0.0
 
 # Bioinformatics & Sequence Analysis
-biopython>=1.81
-Levenshtein>=0.20.9
+biopython>=1.79
+python-Levenshtein>=0.12.0
 
 # Data Processing & ML Utilities
 numpy>=1.23.5

@@ -6,34 +6,34 @@ attack:
   target_model: "models/baseline/checkpoint_epoch_3.pt"  # Best baseline model
   dataset: "promoter"  # Dataset to attack
   test_samples: 20  # Number of test samples to attack
-  max_perturbations: 5  # Maximum nucleotide changes allowed
+  max_perturbations: 8  # Allow more nucleotide changes for stronger attacks
   
 # Genetic algorithm parameters
 genetic_algorithm:
-  population_size: 50  # Initial population size
-  max_generations: 100  # Maximum number of generations
-  elite_ratio: 0.2  # Top 20% kept as elite
-  mutation_rate: 0.1  # Probability of mutation per nucleotide
-  crossover_rate: 0.8  # Probability of crossover
-  convergence_threshold: 10  # Stop if no improvement for N generations
+  population_size: 100  # Increased population size for more diversity
+  max_generations: 200  # More generations for better exploration
+  elite_ratio: 0.1  # Keep fewer elite, more exploration
+  mutation_rate: 0.3  # Higher mutation rate for more aggressive search
+  crossover_rate: 0.9  # Higher crossover rate
+  convergence_threshold: 20  # Allow more time for convergence
   
 # Fitness function weights
 fitness:
-  confidence_drop_weight: 1.0  # Primary: maximize model confidence drop
-  perturbation_penalty: 0.1  # Penalty for too many changes
-  biological_penalty: 0.2  # Penalty for biologically implausible changes
+  confidence_drop_weight: 2.0  # Much higher weight on confidence drop
+  perturbation_penalty: 0.05  # Lower penalty for perturbations (allow more changes)
+  biological_penalty: 0.1  # Lower biological penalty (more aggressive)
   
 # Biological constraints
 biological_constraints:
-  max_gc_deviation: 0.05  # Max GC content deviation (±5%)
-  preserve_motifs: true  # Try to preserve known regulatory motifs
-  prefer_transitions: true  # Prefer A↔G, C↔T over transversions
-  avoid_stop_codons: true  # Avoid creating stop codons
+  max_gc_deviation: 0.1  # Allow more GC content deviation (±10%)
+  preserve_motifs: false  # Disable motif preservation for more aggressive attacks
+  prefer_transitions: false  # Allow all types of mutations
+  avoid_stop_codons: false  # Allow stop codons for stronger attacks
   
 # Attack success criteria
 success_criteria:
-  confidence_threshold: 0.5  # Attack successful if confidence drops below 50%
-  min_confidence_drop: 0.01  # Minimum confidence drop to consider successful (1%)
+  confidence_threshold: 0.4  # Attack successful if confidence drops below 40%
+  min_confidence_drop: 0.15  # Minimum confidence drop to consider successful (15%)
   
 # Output configuration
 output:
