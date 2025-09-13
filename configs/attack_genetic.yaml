@@ -25,10 +25,10 @@ fitness:
   
 # Biological constraints
 biological_constraints:
-  max_gc_deviation: 0.1  # Allow more GC content deviation (±10%)
-  preserve_motifs: false  # Disable motif preservation for more aggressive attacks
-  prefer_transitions: false  # Allow all types of mutations
-  avoid_stop_codons: false  # Allow stop codons for stronger attacks
+  max_gc_deviation: 0.05  # Maximum allowed deviation from original GC content (5%)
+  preserve_motifs: true  # Whether to preserve known regulatory motifs
+  prefer_transitions: true  # Prefer A↔G, C↔T mutations (more biologically likely)
+  avoid_stop_codons: true  # Avoid creating stop codons in coding regions
   
 # Attack success criteria
 success_criteria:

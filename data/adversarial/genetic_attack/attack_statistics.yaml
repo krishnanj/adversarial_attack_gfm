@@ -14,19 +14,19 @@ avg_biological_score: !!python/object/apply:numpy.core.multiarray.scalar
   - -1
   - 0
 - !!binary |
-  AAAAAAAA8D8=
+  RhFq5pJR7T8=
 avg_confidence_drop: !!python/object/apply:numpy.core.multiarray.scalar
 - *id001
 - !!binary |
-  AAAAINo/1D8=
+  zczMnJhL1T8=
 avg_generations: !!python/object/apply:numpy.core.multiarray.scalar
 - *id001
 - !!binary |
-  mpmZmZkZQkA=
+  AAAAAADgQUA=
 avg_perturbations: !!python/object/apply:numpy.core.multiarray.scalar
 - *id001
 - !!binary |
-  AAAAAAAAEUA=
+  mpmZmZmZEUA=
 config:
   attack:
     dataset: promoter
@@ -35,10 +35,10 @@ config:
     target_model: models/baseline/checkpoint_epoch_3.pt
     test_samples: 20
   biological_constraints:
-    avoid_stop_codons: false
-    max_gc_deviation: 0.1
-    prefer_transitions: false
-    preserve_motifs: false
+    avoid_stop_codons: true
+    max_gc_deviation: 0.05
+    prefer_transitions: true
+    preserve_motifs: true
   fitness:
     biological_penalty: 0.1
     confidence_drop_weight: 2.0
@@ -61,7 +61,7 @@ config:
 success_rate: !!python/object/apply:numpy.core.multiarray.scalar
 - *id001
 - !!binary |
-  mpmZmZmZ6T8=
+  MzMzMzMz6z8=
 successful_attacks: !!python/object/apply:numpy.core.multiarray.scalar
 - !!python/object/apply:numpy.dtype
   args:
@@ -78,5 +78,5 @@ successful_attacks: !!python/object/apply:numpy.core.multiarray.scalar
   - -1
   - 0
 - !!binary |
-  EAAAAAAAAAA=
+  EQAAAAAAAAA=
 total_attacks: 20

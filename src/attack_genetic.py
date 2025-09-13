@@ -87,20 +87,22 @@ class BiologicalConstraints:
             return 0.3  # Lower score for transversions
     
     def calculate_biological_score(self, original_seq: str, mutated_seq: str) -> float:
-        """Calculate overall biological plausibility score."""
+        """Calculate overall biological plausibility score based on enabled constraints."""
         scores = []
         
-        # GC content constraint
-        if self.gc_content_valid(original_seq, mutated_seq):
-            scores.append(1.0)
-        else:
-            scores.append(0.0)
+        # GC content constraint - only apply if max_gc_deviation is set
+        if self.max_gc_deviation > 0:
+            if self.gc_content_valid(original_seq, mutated_seq):
+                scores.append(1.0)
+            else:
+                scores.append(0.0)
         
-        # Motif preservation
-        scores.append(self.motif_preservation_score(original_seq, mutated_seq))
+        # Motif preservation - only apply if preserve_motifs is enabled
+        if self.preserve_motifs:
+            scores.append(self.motif_preservation_score(original_seq, mutated_seq))
         
-        # Transition preference (average across all changes)
-        if len(original_seq) == len(mutated_seq):
+        # Transition preference - only apply if prefer_transitions is enabled
+        if self.prefer_transitions and len(original_seq) == len(mutated_seq):
             transition_scores = []
             for orig, mut in zip(original_seq, mutated_seq):
                 if orig != mut:
@@ -109,6 +111,10 @@ class BiologicalConstraints:
                 scores.append(np.mean(transition_scores))
             else:
                 scores.append(1.0)
+        
+        # If no constraints are enabled, return neutral score
+        if not scores:
+            return 1.0
         
         return np.mean(scores)
 

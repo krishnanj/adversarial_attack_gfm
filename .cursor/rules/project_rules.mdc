@@ -39,6 +39,10 @@ alwaysApply: true
    - Commit changes frequently with meaningful commit messages
    - Use the established `.gitignore` patterns
    - Keep the repository clean and organized
+   - **NEVER push files larger than 100MB to the repository**
+   - Data files (raw datasets, processed data, adversarial examples) should never be committed
+   - Model checkpoints and large model files should never be committed
+   - Use Git LFS for any essential large files if absolutely necessary
 
 ## Research Focus
 

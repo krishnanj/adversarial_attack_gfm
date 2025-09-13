@@ -37,22 +37,25 @@ venv.bak/
 *.pkl
 *.pickle
 
-# Data files (keep structure but ignore large files)
-data/raw/*.fasta
-data/raw/*.fa
-data/raw/*.txt
-data/raw/*.csv
-data/raw/*.tsv
-data/processed/*.csv
-data/processed/*.tsv
-data/adversarial/*.csv
-data/adversarial/*.tsv
+# Data files - NEVER commit data files to repository
+data/raw/
+data/processed/
+data/adversarial/
+*.fasta
+*.fa
+*.txt
+*.csv
+*.tsv
+*.json
 
-# Model checkpoints
-models/*.pth
-models/*.pt
-models/*.bin
-models/*.safetensors
+# Model checkpoints and large model files - NEVER commit
+models/
+*.pth
+*.pt
+*.bin
+*.safetensors
+*.h5
+*.hdf5
 
 # Logs and outputs
 logs/
