@@ -8,7 +8,7 @@ peft>=0.4.0
 
 # Adversarial Attack Tools
 nevergrad>=0.6.0
-deap>=2.0.0
+deap>=1.4.3
 
 # Bioinformatics & Sequence Analysis
 biopython>=1.79
