@@ -6,25 +6,23 @@ training:
   dataset: "promoter"  # Dataset to use
   max_length: 300
   batch_size: 16
-  eval_samples: 50  # Only evaluate on 50 samples for speed
-  train_samples: 1000  # Only train on 1000 samples for speed
-  val_samples: 200  # Only validate on 200 samples for speed
-  learning_rate: 0.000005  # Much smaller LR for fine-tuning
-  num_epochs: 1  # Fewer epochs per iteration for faster convergence
+  # Use full dataset (remove sample limits for full experiment)
+  learning_rate: 0.000005  # Smaller LR for fine-tuning
+  num_epochs: 3  # Full epochs per iteration
   fine_tune: true  # Enable fine-tuning mode
-  warmup_steps: 100
+  warmup_steps: 500  # Full warmup steps
   num_classes: 2
   weight_decay: 0.01
   seed: 42
 
 # Adversarial training parameters
 adversarial_training:
-  max_iterations: 5  # Maximum number of adversarial training iterations (quick test)
+  max_iterations: 5  # Maximum number of adversarial training iterations
   adversarial_ratio: 0.2  # Ratio of adversarial examples to original data
   save_adversarial_examples: true
   adversarial_data_dir: "data/adversarial/iterative_training"
   start_from_iteration: 1  # Skip iteration 0, start from existing model
-  convergence_threshold: 0  # Stop early if improvement < this threshold (set to 0 to disable)
+  convergence_threshold: 0.001  # Stop early if improvement < 0.1%
 
 # Model checkpointing
 checkpointing:
