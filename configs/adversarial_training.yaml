@@ -1,0 +1,51 @@
+# Iterative Adversarial Training Configuration
+
+# Training parameters (inherited from base training config)
+training:
+  base_model: "models/baseline/checkpoint_epoch_3.pt"  # Use existing trained model
+  dataset: "promoter"  # Dataset to use
+  max_length: 300
+  batch_size: 16
+  eval_samples: 50  # Only evaluate on 50 samples for speed
+  train_samples: 1000  # Only train on 1000 samples for speed
+  val_samples: 200  # Only validate on 200 samples for speed
+  learning_rate: 0.000005  # Much smaller LR for fine-tuning
+  num_epochs: 1  # Fewer epochs per iteration for faster convergence
+  fine_tune: true  # Enable fine-tuning mode
+  warmup_steps: 100
+  num_classes: 2
+  weight_decay: 0.01
+  seed: 42
+
+# Adversarial training parameters
+adversarial_training:
+  max_iterations: 5  # Maximum number of adversarial training iterations (quick test)
+  adversarial_ratio: 0.2  # Ratio of adversarial examples to original data
+  save_adversarial_examples: true
+  adversarial_data_dir: "data/adversarial/iterative_training"
+  start_from_iteration: 1  # Skip iteration 0, start from existing model
+  convergence_threshold: 0  # Stop early if improvement < this threshold (set to 0 to disable)
+
+# Model checkpointing
+checkpointing:
+  save_dir: "models/adversarial_training"
+  save_best_only: true
+  monitor_metric: "val_accuracy"
+  save_frequency: 1  # Save after each iteration
+
+# Monitoring and plotting
+monitoring:
+  plot_accuracy: true
+  plot_dir: "plots/adversarial_training"
+  save_metrics: true
+  metrics_file: "data/adversarial/iterative_training/training_metrics.csv"
+  log_level: "INFO"
+
+# Attack configuration (inherits from genetic attack)
+attack_config: "configs/attack_genetic.yaml"
+
+# Output configuration
+output:
+  results_dir: "results/adversarial_training"
+  save_final_model: true
+  generate_report: true

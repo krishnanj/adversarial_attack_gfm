@@ -26,7 +26,7 @@ sys.path.append(str(Path(__file__).parent))
 from utils import (
     load_dataset, create_data_splits, load_dnabert2_model, 
     create_data_loaders, calculate_metrics, save_config, 
-    load_config, set_seed, get_device
+    load_config, set_seed, get_device, GenomicDataset
 )
 
 # Set up logging
@@ -351,6 +351,156 @@ class Trainer:
         logger.info(f"\nTraining completed! Best validation accuracy: {best_val_accuracy:.4f}")
         
         return history
+
+def train_model(model, train_df, val_df, config, save_path=None):
+    """Train a DNABERT-2 model and return metrics."""
+    logger = logging.getLogger(__name__)
+    
+    # Get device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+    
+    # Use only a subset of training data for speed
+    train_samples = config.get('train_samples', len(train_df))
+    val_samples = config.get('val_samples', len(val_df))
+    
+    if train_samples < len(train_df):
+        train_df = train_df.sample(n=train_samples, random_state=42).reset_index(drop=True)
+        logger.info(f"Using {train_samples} samples for fast training")
+    
+    if val_samples < len(val_df):
+        val_df = val_df.sample(n=val_samples, random_state=42).reset_index(drop=True)
+        logger.info(f"Using {val_samples} samples for fast validation")
+    
+    # Load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(
+        "zhihan1996/DNABERT-2-117M",
+        trust_remote_code=True
+    )
+    
+    # Create data loaders
+    train_loader, val_loader = create_data_loaders_from_df(
+        train_df, val_df, tokenizer, config
+    )
+    
+    # Create a minimal config for Trainer
+    trainer_config = {
+        'model': {'name': 'zhihan1996/DNABERT-2-117M'},
+        'training': config,
+        'output': {
+            'model_dir': 'models/temp',
+            'log_dir': 'logs/temp'
+        }
+    }
+    
+    # Adjust for fine-tuning mode
+    if config.get('fine_tune', False):
+        logger.info("Fine-tuning mode: Only training classifier head with smaller learning rate")
+        trainer_config['training']['warmup_steps'] = min(50, config.get('warmup_steps', 100))
+        # Freeze the DNABERT-2 encoder for fine-tuning
+        for param in model.dnabert2.parameters():
+            param.requires_grad = False
+        logger.info("DNABERT-2 encoder frozen for fine-tuning")
+        
+        # Verify fine-tuning setup
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        frozen_params = total_params - trainable_params
+        logger.info(f"Fine-tuning verification: {trainable_params:,} trainable params, {frozen_params:,} frozen params")
+        logger.info(f"Only {trainable_params/total_params*100:.1f}% of parameters are trainable (classifier head only)")
+    
+    # Initialize trainer
+    trainer = Trainer(trainer_config, device)
+    trainer.model = model
+    
+    # Train model
+    history = trainer.train(train_loader, val_loader)
+    
+    # Save model if path provided
+    if save_path:
+        torch.save(model.state_dict(), save_path)
+        logger.info(f"Model saved to {save_path}")
+    
+    # Return final metrics
+    final_metrics = {
+        'train_accuracy': history['train_accuracy'][-1] if history['train_accuracy'] else 0,
+        'val_accuracy': history['val_accuracy'][-1] if history['val_accuracy'] else 0,
+        'train_loss': history['train_loss'][-1] if history['train_loss'] else 0,
+        'val_loss': history['val_loss'][-1] if history['val_loss'] else 0
+    }
+    
+    return final_metrics
+
+def evaluate_model(model, test_df, config):
+    """Evaluate a model on test data and return metrics."""
+    logger = logging.getLogger(__name__)
+    
+    # Get device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+    
+    # Load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(
+        "zhihan1996/DNABERT-2-117M",
+        trust_remote_code=True
+    )
+    
+    # Use only a subset of test data for fast evaluation
+    eval_samples = config.get('eval_samples', len(test_df))
+    if eval_samples < len(test_df):
+        test_df = test_df.sample(n=eval_samples, random_state=42).reset_index(drop=True)
+        logger.info(f"Using {eval_samples} samples for fast evaluation")
+    
+    # Create test data loader
+    test_loader = create_data_loaders_from_df(
+        test_df, None, tokenizer, config, test_only=True
+    )
+    
+    # Create a minimal config for Trainer
+    trainer_config = {
+        'model': {'name': 'zhihan1996/DNABERT-2-117M'},
+        'training': config,
+        'output': {
+            'model_dir': 'models/temp',
+            'log_dir': 'logs/temp'
+        }
+    }
+    
+    # Initialize trainer for evaluation
+    trainer = Trainer(trainer_config, device)
+    trainer.model = model
+    
+    # Evaluate model
+    test_metrics = trainer.evaluate(test_loader)
+    
+    return test_metrics
+
+def create_data_loaders_from_df(train_df, val_df, tokenizer, config, test_only=False):
+    """Create data loaders from DataFrames."""
+    if test_only:
+        # Create test loader only
+        test_sequences = train_df['sequence'].tolist()
+        test_labels = train_df['label'].tolist()
+        
+        test_dataset = GenomicDataset(test_sequences, test_labels, tokenizer, config['max_length'])
+        test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False)
+        
+        return test_loader
+    else:
+        # Create train and val loaders
+        train_sequences = train_df['sequence'].tolist()
+        train_labels = train_df['label'].tolist()
+        
+        val_sequences = val_df['sequence'].tolist()
+        val_labels = val_df['label'].tolist()
+        
+        train_dataset = GenomicDataset(train_sequences, train_labels, tokenizer, config['max_length'])
+        val_dataset = GenomicDataset(val_sequences, val_labels, tokenizer, config['max_length'])
+        
+        train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False)
+        
+        return train_loader, val_loader
 
 def main():
     """Main training function."""

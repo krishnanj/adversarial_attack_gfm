@@ -23,6 +23,17 @@ import yaml
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def setup_logging(level=logging.INFO):
+    """Setup logging configuration."""
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler('adversarial_training.log')
+        ]
+    )
+
 class GenomicDataset(Dataset):
     """
     PyTorch Dataset for genomic sequence classification.

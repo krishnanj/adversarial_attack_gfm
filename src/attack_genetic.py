@@ -157,7 +157,10 @@ class GeneticAdversarialAttack:
             num_classes=2,
             freeze_encoder=True
         )
-        self.model.load_state_dict(checkpoint['model_state_dict'])
+        if 'model_state_dict' in checkpoint:
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+        else:
+            self.model.load_state_dict(checkpoint)
         self.model.to(self.device)
         self.model.eval()
         
@@ -486,17 +489,20 @@ class GeneticAdversarialAttack:
         
         # Save attack statistics
         if self.config['output']['save_attack_statistics']:
+            # Convert numpy objects to regular Python types for YAML
+            clean_stats = self._clean_numpy_objects(attack_stats)
             stats_path = os.path.join(output_dir, 'attack_statistics.yaml')
             with open(stats_path, 'w') as f:
-                yaml.dump(attack_stats, f, default_flow_style=False)
+                yaml.dump(clean_stats, f, default_flow_style=False)
             self.logger.info(f"Attack statistics saved to {stats_path}")
     
-    def run_attack(self, test_data_path: str):
+    def run_attack(self, test_data):
         """Run the complete genetic algorithm attack."""
         self.logger.info("Starting genetic algorithm adversarial attack")
         
-        # Load test data
-        test_data = pd.read_csv(test_data_path)
+        # Load test data (either DataFrame or file path)
+        if isinstance(test_data, str):
+            test_data = pd.read_csv(test_data)
         self.logger.info(f"Loaded {len(test_data)} test sequences")
         
         # Run attacks
@@ -536,6 +542,17 @@ class GeneticAdversarialAttack:
         self.logger.info(f"Average perturbations: {attack_stats['avg_perturbations']:.1f}")
         
         return results_df, attack_stats
+    
+    def _clean_numpy_objects(self, obj):
+        """Convert numpy objects to regular Python types."""
+        if hasattr(obj, 'item'):
+            return obj.item()
+        elif isinstance(obj, (list, tuple)):
+            return [self._clean_numpy_objects(x) for x in obj]
+        elif isinstance(obj, dict):
+            return {k: self._clean_numpy_objects(v) for k, v in obj.items()}
+        else:
+            return obj
 
 
 def main():

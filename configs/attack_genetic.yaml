@@ -5,17 +5,17 @@ attack:
   name: "genetic_algorithm"
   target_model: "models/baseline/checkpoint_epoch_3.pt"  # Best baseline model
   dataset: "promoter"  # Dataset to attack
-  test_samples: 20  # Number of test samples to attack
+  test_samples: 5  # Number of test samples to attack
   max_perturbations: 8  # Allow more nucleotide changes for stronger attacks
   
 # Genetic algorithm parameters
 genetic_algorithm:
-  population_size: 100  # Increased population size for more diversity
-  max_generations: 200  # More generations for better exploration
+  population_size: 20  # Smaller population for speed
+  max_generations: 10  # Fewer generations for speed
   elite_ratio: 0.1  # Keep fewer elite, more exploration
   mutation_rate: 0.3  # Higher mutation rate for more aggressive search
   crossover_rate: 0.9  # Higher crossover rate
-  convergence_threshold: 20  # Allow more time for convergence
+  convergence_threshold: 5  # Quick convergence for speed
   
 # Fitness function weights
 fitness:
