@@ -4,11 +4,11 @@ A comprehensive framework for investigating and improving the adversarial robust
 
 ## Overview
 
-This project implements an iterative adversarial training pipeline that enhances the robustness of DNABERT-2 against genetic algorithm-based adversarial attacks. The framework supports both promoter and transcription factor classification tasks with configurable training parameters.
+This project implements an iterative adversarial training pipeline that enhances the robustness of DNABERT-2 against genetic algorithm-based adversarial attacks. The framework supports transcription factor classification tasks with configurable training parameters.
 
 ## Key Features
 
-- **Multi-Dataset Support**: Works with both promoter (300bp) and transcription factor (200bp) datasets
+- **Transcription Factor Classification**: Works with transcription factor (200bp) datasets
 - **Iterative Adversarial Training**: Fine-tunes models exclusively on adversarial examples
 - **Biological Constraints**: Maintains biological plausibility in adversarial generation
 - **Configurable Parameters**: Full control over training and attack parameters via YAML configs
@@ -41,7 +41,7 @@ cd ~/adversarial_attack_gfm
 
 ### Run Experiments
 
-**Transcription Factor Dataset (Recommended)**:
+**Transcription Factor Dataset**:
 ```bash
 # Full training (5 iterations, ~2-3 hours)
 python scripts/run_adversarial_training.py --dataset tf
@@ -49,11 +49,6 @@ python scripts/run_adversarial_training.py --dataset tf
 # Quick testing (2-3 minutes)
 # First modify configs for fast parameters, then:
 python scripts/run_adversarial_training.py --dataset tf
-```
-
-**Promoter Dataset**:
-```bash
-python scripts/run_adversarial_training.py --dataset promoter
 ```
 
 ## Cloud GPU Setup
@@ -77,19 +72,13 @@ The guide includes:
 - **Length**: 200bp sequences
 - **Task**: Binary classification of transcription factor binding sites
 
-### Promoter Dataset
-- **Path**: `data/raw/GUE/prom/prom_300_all/`
-- **Sequences**: 47,356 training samples
-- **Length**: 300bp sequences
-- **Task**: Binary classification of promoter vs non-promoter sequences
-
 ## Configuration
 
 ### Training Parameters
 Edit `configs/adversarial_training.yaml`:
 ```yaml
 training:
-  dataset: "tf"  # or "promoter"
+  dataset: "tf"
   num_epochs: 3
   batch_size: 16
   max_iterations: 5
@@ -190,20 +179,16 @@ This work is currently under review. If you use this code, please cite the repos
 ```bibtex
 @software{adversarial_attack_gfm_2025,
   title={Adversarial Attacks on Gene Foundation Models: Iterative Adversarial Training for Robust Genomic Sequence Classification},
-  author={Krishnan, Jeyashree},
+  author={Krishnan, Jeyashree and Rangarajan, Ajay},
   year={2025},
   url={https://github.com/krishnanj/adversarial_attack_gfm},
   note={Preprint - work under review}
 }
 ```
 
-**Note**: This is a preprint repository. Please check back for the official publication citation once the paper is accepted.
+**Note**: This is a preprint repository. 
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
+## Key References
 
 - **DNABERT-2**: Zhou et al. (2023) - ICLR 2024
 - **GUE Benchmark**: Genomic Understanding Evaluation dataset
