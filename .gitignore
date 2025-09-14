@@ -40,11 +40,11 @@ venv.bak/
 # Data files - NEVER commit data files to repository
 data/raw/
 data/processed/
-data/adversarial/
+# Note: data/adversarial/ is now committed as it contains our experimental results
 *.fasta
 *.fa
 *.txt
-*.csv
+# Note: *.csv files in data/adversarial/ are now committed as experimental results
 *.tsv
 *.json
 
