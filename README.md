@@ -46,23 +46,7 @@ cd ~/adversarial_attack_gfm
 # Full training (5 iterations, ~2-3 hours)
 python scripts/run_adversarial_training.py --dataset tf
 
-# Quick testing (2-3 minutes)
-# First modify configs for fast parameters, then:
-python scripts/run_adversarial_training.py --dataset tf
 ```
-
-## Cloud GPU Setup
-
-For running experiments on Lambda Labs GPU instances, see the complete setup guide:
-
-**[lambda_labs_setup.md](lambda_labs_setup.md)**
-
-The guide includes:
-- Instance setup and SSH configuration
-- DNABERT-2 compatibility fixes
-- Background execution commands
-- Cost optimization tips
-- Troubleshooting common issues
 
 ## Dataset Support
 
