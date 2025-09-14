@@ -2,7 +2,7 @@
 
 # Training parameters (inherited from base training config)
 training:
-  base_model: "models/baseline/checkpoint_epoch_3.pt"  # Use existing trained model
+  base_model: "zhihan1996/DNABERT-2-117M"  # Start from pretrained model
   dataset: "promoter"  # Dataset to use
   max_length: 300
   batch_size: 16
@@ -21,7 +21,7 @@ adversarial_training:
   adversarial_ratio: 0.2  # Ratio of adversarial examples to original data
   save_adversarial_examples: true
   adversarial_data_dir: "data/adversarial/iterative_training"
-  start_from_iteration: 1  # Skip iteration 0, start from existing model
+  start_from_iteration: 0  # Start from scratch, retrain baseline
   convergence_threshold: 0.001  # Stop early if improvement < 0.1%
 
 # Model checkpointing

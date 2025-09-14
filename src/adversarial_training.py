@@ -180,9 +180,9 @@ class IterativeAdversarialTrainer:
         
         # Create model
         model = DNABERT2Classifier(
-            model_name="zhihan1996/DNABERT-2-117M",
+            model_name=self.config['training']['base_model'],
             num_classes=self.config['training']['num_classes'],
-            freeze_encoder=True
+            freeze_encoder=False  # Full retraining - no freezing
         )
         
         # Load previous model if not first iteration
@@ -320,9 +320,9 @@ class IterativeAdversarialTrainer:
             # Use existing model, evaluate it first
             self.logger.info(f"=== Using existing model from {model_path} ===")
             model = DNABERT2Classifier(
-                model_name="zhihan1996/DNABERT-2-117M",
+                model_name=self.config['training']['base_model'],
                 num_classes=self.config['training']['num_classes'],
-                freeze_encoder=True
+                freeze_encoder=False  # Full retraining - no freezing
             )
             
             # Load checkpoint and extract model state dict
