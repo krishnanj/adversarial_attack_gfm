@@ -185,17 +185,19 @@ This framework is designed for:
 
 ## Citation
 
-If you use this work, please cite:
+This work is currently under review. If you use this code, please cite the repository:
 
 ```bibtex
-@article{adversarial_attack_gfm_2025,
+@software{adversarial_attack_gfm_2025,
   title={Adversarial Attacks on Gene Foundation Models: Iterative Adversarial Training for Robust Genomic Sequence Classification},
-  author={[Your Name]},
-  journal={[Journal/Conference]},
+  author={Krishnan, Jeyashree},
   year={2025},
-  note={Code available at: https://github.com/krishnanj/adversarial_attack_gfm}
+  url={https://github.com/krishnanj/adversarial_attack_gfm},
+  note={Preprint - work under review}
 }
 ```
+
+**Note**: This is a preprint repository. Please check back for the official publication citation once the paper is accepted.
 
 ## License
 
