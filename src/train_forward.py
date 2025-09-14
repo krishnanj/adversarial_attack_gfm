@@ -48,11 +48,14 @@ class DNABERT2Classifier(nn.Module):
             freeze_encoder: Whether to freeze the DNABERT-2 encoder
         """
         super(DNABERT2Classifier, self).__init__()
-        
+        import os
+        os.environ["DNABERT2_USE_FLASH_ATTN"] = "false"
+    
         # Load DNABERT-2 model
         self.dnabert2 = AutoModel.from_pretrained(
             model_name,
-            trust_remote_code=True
+            trust_remote_code=True,
+            attn_implementation="eager"
         )
         
         # Freeze encoder if specified

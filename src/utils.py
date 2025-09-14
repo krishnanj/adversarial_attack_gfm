@@ -182,7 +182,8 @@ def load_dnabert2_model(model_name: str = "zhihan1996/DNABERT-2-117M") -> Tuple[
         # Load model
         model = AutoModel.from_pretrained(
             model_name,
-            trust_remote_code=True
+            trust_remote_code=True,
+            attn_implementation="eager"
         )
         
         logger.info("DNABERT-2 model loaded successfully")
