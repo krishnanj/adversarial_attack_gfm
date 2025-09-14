@@ -1,4 +1,4 @@
-# Adversarial Attacks on Gene Foundation Models
+# Enhancing Genomic Foundation Model Robustness through Iterative Black-Box Adversarial Training
 
 A comprehensive framework for investigating and improving the adversarial robustness of DNABERT-2 through iterative adversarial training on genomic sequence classification tasks.
 
