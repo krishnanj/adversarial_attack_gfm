@@ -23,13 +23,15 @@ output:
   save_final_model: true
 training:
   base_model: zhihan1996/DNABERT-2-117M
-  batch_size: 16
+  batch_size: 128
   dataset: tf
   fine_tune: false
   learning_rate: 2.0e-05
   max_length: 200
   num_classes: 2
-  num_epochs: 3
+  num_epochs: 1
   seed: 42
-  warmup_steps: 500
+  train_samples: 500
+  val_samples: 100
+  warmup_steps: 5
   weight_decay: 0.01
