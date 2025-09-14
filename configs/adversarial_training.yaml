@@ -7,9 +7,9 @@ training:
   max_length: 300
   batch_size: 16
   # Use full dataset (remove sample limits for full experiment)
-  learning_rate: 0.000005  # Smaller LR for fine-tuning
+  learning_rate: 0.00002  # Standard LR for full retraining
   num_epochs: 3  # Full epochs per iteration
-  fine_tune: true  # Enable fine-tuning mode
+  fine_tune: false  # Disable fine-tuning - use full retraining
   warmup_steps: 500  # Full warmup steps
   num_classes: 2
   weight_decay: 0.01

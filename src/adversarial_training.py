@@ -84,6 +84,9 @@ class IterativeAdversarialTrainer:
         # Update attack config to use current model
         self.attack_config['attack']['target_model'] = model_path
         
+        # Use different random seed for each iteration to get different adversarial examples
+        self.attack_config['seed'] = 42 + iteration * 100
+        
         # Create temporary attack config file
         temp_config_path = f"configs/temp_attack_iter_{iteration}.yaml"
         with open(temp_config_path, 'w') as f:
@@ -123,29 +126,57 @@ class IterativeAdversarialTrainer:
         else:
             return obj
     
-    def prepare_adversarial_training_data(self, adversarial_df: pd.DataFrame) -> pd.DataFrame:
-        """Prepare only the new adversarial examples for fine-tuning (no original data)."""
-        # Filter successful adversarial examples
+    def prepare_adversarial_training_data(self, adversarial_df: pd.DataFrame, iteration: int) -> pd.DataFrame:
+        """Prepare cumulative training data: original + all adversarial examples from previous iterations."""
+        # Filter successful adversarial examples from current iteration
         successful_adv = adversarial_df[adversarial_df['attack_successful'] == True].copy()
         
         if len(successful_adv) == 0:
-            self.logger.warning("No successful adversarial examples found")
-            return pd.DataFrame()
+            self.logger.warning(f"No successful adversarial examples found for iteration {iteration}")
+            return self.original_train_df.copy()  # Return original data if no adversarial examples
         
-        # Prepare adversarial data for training (only adversarial examples, no original data)
+        # Prepare adversarial data
         adv_training_data = successful_adv[['adversarial_sequence', 'true_label']].copy()
         adv_training_data.columns = ['sequence', 'label']
         
-        # Log detailed information
-        self.logger.info(f"Preparing {len(adv_training_data)} adversarial examples for fine-tuning")
-        self.logger.info(f"Available adversarial examples: {len(successful_adv)}, Used: {len(adv_training_data)}")
+        # Load all previous adversarial examples
+        all_adv_examples = []
+        for prev_iter in range(1, iteration + 1):
+            adv_file = f"{self.config['adversarial_training']['adversarial_data_dir']}/adversarial_iter_{prev_iter}.csv"
+            if os.path.exists(adv_file):
+                prev_adv_df = pd.read_csv(adv_file)
+                prev_successful = prev_adv_df[prev_adv_df['attack_successful'] == True].copy()
+                if len(prev_successful) > 0:
+                    prev_adv_data = prev_successful[['adversarial_sequence', 'true_label']].copy()
+                    prev_adv_data.columns = ['sequence', 'label']
+                    all_adv_examples.append(prev_adv_data)
+                    self.logger.info(f"Loaded {len(prev_adv_data)} adversarial examples from iteration {prev_iter}")
         
-        return adv_training_data
+        # Combine all adversarial examples
+        if all_adv_examples:
+            combined_adv_df = pd.concat(all_adv_examples, ignore_index=True)
+            # Remove duplicates based on sequence
+            combined_adv_df = combined_adv_df.drop_duplicates(subset=['sequence'])
+            self.logger.info(f"Total unique adversarial examples: {len(combined_adv_df)}")
+        else:
+            combined_adv_df = adv_training_data
+        
+        # Combine original training data with all adversarial examples
+        combined_training_data = pd.concat([self.original_train_df, combined_adv_df], ignore_index=True)
+        
+        # Log detailed information
+        self.logger.info(f"Preparing training data for iteration {iteration}:")
+        self.logger.info(f"  - Original training samples: {len(self.original_train_df)}")
+        self.logger.info(f"  - New adversarial examples: {len(adv_training_data)}")
+        self.logger.info(f"  - Total adversarial examples: {len(combined_adv_df)}")
+        self.logger.info(f"  - Combined training samples: {len(combined_training_data)}")
+        
+        return combined_training_data
     
     def train_iteration(self, train_df: pd.DataFrame, val_df: pd.DataFrame, iteration: int, 
                        model_path: str = None) -> Tuple[str, Dict[str, float]]:
-        """Fine-tune model for one iteration using only adversarial examples."""
-        self.logger.info(f"Fine-tuning iteration {iteration} on {len(train_df)} adversarial examples")
+        """Retrain model for one iteration using original + cumulative adversarial examples."""
+        self.logger.info(f"Retraining iteration {iteration} on {len(train_df)} total examples (original + adversarial)")
         
         # Create model
         model = DNABERT2Classifier(
@@ -163,11 +194,8 @@ class IterativeAdversarialTrainer:
                 model.load_state_dict(checkpoint)
             self.logger.info(f"Loaded model from {model_path}")
             
-            # Ensure encoder is frozen for fine-tuning (override checkpoint state)
-            if self.config['training'].get('fine_tune', False):
-                for param in model.dnabert2.parameters():
-                    param.requires_grad = False
-                self.logger.info("DNABERT-2 encoder frozen for fine-tuning (overriding checkpoint state)")
+            # Full retraining mode - all parameters trainable
+            self.logger.info("Full retraining mode: All model parameters are trainable")
         
         # Train model
         train_metrics = train_model(
@@ -183,8 +211,8 @@ class IterativeAdversarialTrainer:
         test_metrics = evaluate_model(model, test_df, self.config['training'])
         
         # Calculate adversarial sample information
-        # Since we're only training on adversarial examples now
-        adversarial_samples = len(train_df)
+        # Count adversarial examples in training data
+        adversarial_samples = len(train_df) - len(self.original_train_df)
         
         # Combine metrics
         iteration_metrics = {
@@ -196,7 +224,7 @@ class IterativeAdversarialTrainer:
             'val_loss': train_metrics.get('val_loss', 0),
             'test_loss': test_metrics.get('loss', 0),
             'adversarial_samples': adversarial_samples,
-            'training_approach': 'adversarial_only'  # Indicate we're only training on adversarial examples
+            'training_approach': 'full_retraining'  # Indicate we're doing full retraining with cumulative data
         }
         
         self.training_metrics.append(iteration_metrics)
@@ -304,11 +332,8 @@ class IterativeAdversarialTrainer:
             else:
                 model.load_state_dict(checkpoint)
             
-            # Ensure encoder is frozen for fine-tuning (override checkpoint state)
-            if self.config['training'].get('fine_tune', False):
-                for param in model.dnabert2.parameters():
-                    param.requires_grad = False
-                self.logger.info("DNABERT-2 encoder frozen for fine-tuning (overriding checkpoint state)")
+            # Full retraining mode - all parameters trainable
+            self.logger.info("Full retraining mode: All model parameters are trainable")
             
             # Evaluate existing model (using fast evaluation)
             test_metrics = evaluate_model(model, test_df, self.config['training'])
@@ -346,8 +371,8 @@ class IterativeAdversarialTrainer:
                 self.logger.info(f"Generating new adversarial examples for iteration {iteration}")
                 adversarial_df = self.generate_adversarial_examples(model_path, test_df, iteration)
             
-            # Prepare only adversarial examples for fine-tuning (no original data)
-            adv_train_df = self.prepare_adversarial_training_data(adversarial_df)
+            # Prepare cumulative training data (original + all adversarial examples)
+            adv_train_df = self.prepare_adversarial_training_data(adversarial_df, iteration)
             
             if len(adv_train_df) == 0:
                 self.logger.warning(f"No adversarial examples for iteration {iteration}, skipping training")
