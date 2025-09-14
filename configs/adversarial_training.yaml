@@ -1,7 +1,7 @@
 adversarial_training:
   adversarial_data_dir: data/adversarial/iterative_training
   adversarial_ratio: 0.2
-  convergence_threshold: 0.001
+  convergence_threshold: 0.0
   max_iterations: 5
   save_adversarial_examples: true
   start_from_iteration: 0
