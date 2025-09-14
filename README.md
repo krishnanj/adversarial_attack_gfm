@@ -4,11 +4,11 @@ A comprehensive framework for investigating and improving the adversarial robust
 
 ## Overview
 
-This project implements an iterative adversarial training pipeline that enhances the robustness of DNABERT-2 against genetic algorithm-based adversarial attacks. The framework supports transcription factor classification tasks with configurable training parameters.
+This project implements an iterative adversarial training pipeline that enhances the robustness of DNABERT-2 against genetic algorithm-based adversarial attacks. The framework supports promoter classification tasks with configurable training parameters.
 
 ## Key Features
 
-- **Transcription Factor Classification**: Works with transcription factor (200bp) datasets
+- **Promoter Classification**: Works with promoter (300bp) datasets
 - **Iterative Adversarial Training**: Fine-tunes models exclusively on adversarial examples
 - **Biological Constraints**: Maintains biological plausibility in adversarial generation
 - **Configurable Parameters**: Full control over training and attack parameters via YAML configs
@@ -41,20 +41,23 @@ cd ~/adversarial_attack_gfm
 
 ### Run Experiments
 
-**Transcription Factor Dataset**:
+**Promoter Dataset**:
 ```bash
 # Full training (5 iterations, ~2-3 hours)
-python scripts/run_adversarial_training.py --dataset tf
+python scripts/run_adversarial_training.py --dataset promoter
 
+# Quick testing (2-3 minutes)
+# First modify configs for fast parameters, then:
+python scripts/run_adversarial_training.py --dataset promoter
 ```
 
 ## Dataset Support
 
-### Transcription Factor Dataset
-- **Path**: `data/raw/GUE/tf/0/`
-- **Sequences**: 32,378 training samples
-- **Length**: 200bp sequences
-- **Task**: Binary classification of transcription factor binding sites
+### Promoter Dataset
+- **Path**: `data/raw/GUE/prom/prom_300_all/`
+- **Sequences**: 47,356 training samples
+- **Length**: 300bp sequences
+- **Task**: Binary classification of promoter vs non-promoter sequences
 
 ## Configuration
 
@@ -62,7 +65,7 @@ python scripts/run_adversarial_training.py --dataset tf
 Edit `configs/adversarial_training.yaml`:
 ```yaml
 training:
-  dataset: "tf"
+  dataset: "promoter"
   num_epochs: 3
   batch_size: 16
   max_iterations: 5
