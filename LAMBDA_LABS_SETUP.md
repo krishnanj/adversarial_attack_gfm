@@ -1,6 +1,6 @@
 # Lambda Labs GPU Cloud Setup Guide
 
-This guide will help you set up and run your adversarial training experiments on Lambda Labs GPU cloud instances.
+This guide will help you set up and run your adversarial training experiments on Lambda Labs GPU cloud instances with support for both promoter and transcription factor datasets.
 
 ## Complete Step-by-Step Workflow
 
@@ -31,8 +31,8 @@ This guide will help you set up and run your adversarial training experiments on
 ### Step 3: Launch GPU Instance
 1. **In Lambda Labs dashboard**:
    - Click "Create Instance"
-   - **Instance Type**: 1x A100 (40 GB SXM4) - $1.29/hour
-   - **Region**: Arizona, USA (or any available)
+   - **Instance Type**: 1x H100 SXM5 (80 GB) - $2.89/hour (recommended for full experiments)
+   - **Region**: us-south-3 (or any available)
    - **Base Image**: Lambda Stack 22.04
    - **Filesystem**: Don't attach a filesystem
    - **Security**: No rulesets
@@ -46,7 +46,7 @@ This guide will help you set up and run your adversarial training experiments on
 ```bash
 # SSH into your instance (use your current terminal)
 ssh ubuntu@<your-instance-ip>
-# Example: ssh ubuntu@123.456.789.012
+# Example: ssh ubuntu@192.222.54.196
 ```
 
 ### Step 5: Clone Repository
@@ -56,133 +56,212 @@ git clone https://github.com/krishnanj/adversarial_attack_gfm.git
 cd adversarial_attack_gfm
 ```
 
-### Step 6: Run Setup Script
+### Step 6: Set Up Python Environment
 ```bash
-# Make setup script executable and run it
-chmod +x scripts/setup_lambda_labs.sh
-./scripts/setup_lambda_labs.sh
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Step 7: Run Your Experiment
+### Step 7: Fix DNABERT-2 Compatibility (CRITICAL)
+This is the most important step - DNABERT-2 requires a specific Triton setup:
+
 ```bash
-# Quick experiment (5 iterations, fast parameters)
-python scripts/run_lambda_labs_experiment.py --mode quick
+# Install build dependencies
+pip install cmake
+
+# Clone and install Triton from source
+git clone https://github.com/openai/triton.git
+cd triton
+pip install -e .
+
+# Remove Triton (this is the key step!)
+pip uninstall triton
+
+# Go back to your project directory
+cd ~/adversarial_attack_gfm
 ```
 
-### Step 8: Monitor Progress (Optional)
+**Why this works**: DNABERT-2 needs Triton to be importable but then falls back to standard PyTorch attention, avoiding the `trans_b` compatibility error.
+
+### Step 8: Run Your Experiment
+
+#### Option A: Transcription Factor Dataset (Recommended)
 ```bash
-# In another terminal (optional)
-./monitor_experiment.sh
+# Run transcription factor dataset with full training (5 iterations, ~2-3 hours)
+nohup python scripts/run_adversarial_training.py --dataset tf > training_output.log 2>&1 &
 ```
 
-### Step 9: Download Results
+#### Option B: Promoter Dataset
+```bash
+# Run promoter dataset with full training
+nohup python scripts/run_adversarial_training.py --dataset promoter > training_output.log 2>&1 &
+```
+
+#### Option C: Quick Testing (Fast)
+```bash
+# For quick testing, modify configs first:
+# Set train_samples: 500, val_samples: 100, num_epochs: 1, test_samples: 5
+# Then run:
+nohup python scripts/run_adversarial_training.py --dataset tf > training_output.log 2>&1 &
+```
+
+### Step 9: Monitor Progress
+```bash
+# Check if the process is running
+ps aux | grep python
+
+# Monitor the log file in real-time
+tail -f training_output.log
+
+# Check GPU usage
+nvidia-smi
+
+# Check disk space
+df -h
+```
+
+### Step 10: Download Results
 ```bash
 # On your LOCAL machine (exit SSH first: type 'exit')
 # Then run these commands on your laptop:
 scp -r ubuntu@<your-instance-ip>:~/adversarial_attack_gfm/results/ ./results/
 scp -r ubuntu@<your-instance-ip>:~/adversarial_attack_gfm/plots/ ./plots/
+scp ubuntu@<your-instance-ip>:~/adversarial_attack_gfm/training_output.log ./training_output.log
 ```
 
-### Step 10: Terminate Instance
+### Step 11: Terminate Instance
 - **IMPORTANT**: Go back to Lambda Labs dashboard
 - Find your instance and click "Terminate"
 - **This stops billing!**
 
-## SSH Workflow & Terminal Usage
+## Dataset Options
 
-### Using Your Current Terminal
-- **SSH from current terminal**: No need to create new Cursor instances
-- **Workflow**: SSH in → Run experiment → Exit SSH → Download results
-- **Commands**:
-  ```bash
-  # Connect to instance
-  ssh ubuntu@<instance-ip>
-  
-  # Run your experiment (you're now ON the Lambda Labs instance)
-  git clone https://github.com/krishnanj/adversarial_attack_gfm.git
-  cd adversarial_attack_gfm
-  ./scripts/setup_lambda_labs.sh
-  python scripts/run_lambda_labs_experiment.py --mode quick
-  
-  # Exit SSH (return to your laptop)
-  exit
-  
-  # Download results (back on your laptop)
-  scp -r ubuntu@<instance-ip>:~/adversarial_attack_gfm/results/ ./results/
-  ```
+### Transcription Factor Dataset (Recommended)
+- **Path**: `data/raw/GUE/tf/0/`
+- **Sequences**: 32,378 training samples
+- **Length**: 200bp sequences
+- **Command**: `python scripts/run_adversarial_training.py --dataset tf`
 
-### Important Notes
-- **SSH connection**: You're "inside" the Lambda Labs instance
-- **Exit SSH**: Type `exit` to return to your local machine
-- **Download results**: Use `scp` from your local machine (not while SSH'd in)
-
-## Monitoring Your Experiment
-
-### Real-time Monitoring
-```bash
-# Monitor GPU usage and experiment progress
-./monitor_experiment.sh
-```
-
-### Check Logs
-```bash
-# View experiment logs
-tail -f lambda_labs_experiment.log
-
-# View training logs
-tail -f adversarial_training.log
-```
+### Promoter Dataset
+- **Path**: `data/raw/GUE/prom/prom_300_all/`
+- **Sequences**: 47,356 training samples
+- **Length**: 300bp sequences
+- **Command**: `python scripts/run_adversarial_training.py --dataset promoter`
 
 ## Configuration Options
 
-### Quick Experiment (Fast Testing)
+### Full Training (Current Default)
 - **File**: `configs/adversarial_training.yaml`
 - **Parameters**:
   - `max_iterations: 5`
-  - `train_samples: 1000`
-  - `eval_samples: 50`
-  - `num_epochs: 1`
-  - `test_samples: 5` (for attacks)
-
-### Full Experiment (Complete Research)
-- **File**: `configs/adversarial_training.yaml` (modify parameters as needed)
-- **To run full experiment**: Modify the config file to increase:
-  - `max_iterations: 10` (or more)
-  - `train_samples: 47356` (full dataset)
-  - `eval_samples: 1000`
   - `num_epochs: 3`
-  - `test_samples: 100` (for attacks)
+  - `batch_size: 16`
+  - `warmup_steps: 500`
+  - `convergence_threshold: 0` (no early stopping)
+- **Runtime**: ~2-3 hours
+- **Cost**: ~$6-9 (H100 at $2.89/hour)
+
+### Quick Testing
+To run quick tests, modify `configs/adversarial_training.yaml`:
+```yaml
+training:
+  train_samples: 500
+  val_samples: 100
+  num_epochs: 1
+  warmup_steps: 5
+  batch_size: 128
+
+# And configs/attack_genetic.yaml:
+attack:
+  test_samples: 5
+genetic_algorithm:
+  population_size: 10
+  max_generations: 3
+```
+- **Runtime**: ~2-3 minutes
+- **Cost**: ~$0.10-0.15
+
+## Background Execution Commands
+
+### Start Experiment in Background
+```bash
+# Transcription factor dataset
+nohup python scripts/run_adversarial_training.py --dataset tf > training_output.log 2>&1 &
+
+# Promoter dataset
+nohup python scripts/run_adversarial_training.py --dataset promoter > training_output.log 2>&1 &
+```
+
+### Monitor Background Process
+```bash
+# Check if running
+ps aux | grep python
+
+# View logs
+tail -f training_output.log
+
+# Check GPU usage
+watch -n 1 nvidia-smi
+```
+
+### Stop Background Process (if needed)
+```bash
+# Find process ID
+ps aux | grep python
+
+# Kill process
+kill <process_id>
+```
+
+## Expected Results
+
+### Training Progress
+- **Iteration 1**: Initial training + attack generation
+- **Iteration 2-5**: Retraining with adversarial examples
+- **Final**: Model robustness evaluation
+
+### Output Files
+- **Results**: `results/adversarial_training/`
+- **Plots**: `plots/adversarial_training/`
+- **Logs**: `training_output.log`
+- **Metrics**: `data/adversarial/iterative_training/training_metrics.csv`
+
+### Key Metrics
+- **Baseline Accuracy**: Initial model performance
+- **Final Accuracy**: After adversarial training
+- **Attack Success Rate**: Percentage of successful attacks
+- **Perturbation Efficiency**: Average changes needed for attacks
 
 ## Cost Management
 
 ### Estimated Costs & Timeline
 - **Instance Boot**: 2-3 minutes (no charge)
 - **Setup Time**: 10-15 minutes
-- **Quick Experiment**: 30-60 minutes
-- **Total Runtime**: ~45-80 minutes
-- **Cost**: ~$1-2 (A100 at $1.29/hour)
-
-### Cost Breakdown
-- **A100 (40GB)**: $1.29/hour
-- **Quick Experiment**: ~$1-2 total
-- **Full Experiment**: ~$3-5 total (if you modify config later)
+- **Full Experiment**: 2-3 hours
+- **Total Runtime**: ~2.5-3.5 hours
+- **Cost**: ~$7-10 (H100 at $2.89/hour)
 
 ### Cost Optimization Tips
 1. **Use Spot Instances**: 50-70% cheaper than on-demand
 2. **Monitor Usage**: Use `nvidia-smi` to check GPU utilization
 3. **Terminate Promptly**: Always terminate instances when done
-4. **Use Appropriate Instance**: Don't over-provision
-
-### Billing Information
-- **Billing Cycle**: Every Friday
-- **Credits**: Visible in Settings > Billing
-- **Usage Tracking**: Real-time usage in dashboard
+4. **Use Appropriate Instance**: H100 for full experiments, smaller for testing
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### 1. GPU Not Detected
+#### 1. Triton Compatibility Error
+```
+TypeError: dot() got an unexpected keyword argument 'trans_b'
+```
+**Solution**: Follow Step 7 exactly - install Triton from source then remove it.
+
+#### 2. GPU Not Detected
 ```bash
 # Check GPU availability
 nvidia-smi
@@ -191,30 +270,26 @@ nvidia-smi
 nvcc --version
 ```
 
-#### 2. Out of Memory Errors
+#### 3. Out of Memory Errors
 ```bash
 # Reduce batch size in config
-batch_size: 16  # Instead of 32
+batch_size: 8  # Instead of 16
 
 # Or use gradient accumulation
 gradient_accumulation_steps: 2
 ```
 
-#### 3. Dataset Not Found
+#### 4. Dataset Not Found
 ```bash
 # Check if datasets are downloaded
+ls -la data/raw/GUE/tf/0/
 ls -la data/raw/GUE/prom/prom_300_all/
 
-# Download datasets if missing
-# (Add dataset download commands here)
+# Datasets should be included in the repository
 ```
 
-#### 4. Permission Errors
-```bash
-# Fix file permissions
-chmod +x scripts/*.sh
-chmod +x scripts/*.py
-```
+#### 5. Early Stopping (Fixed)
+The config now has `convergence_threshold: 0` which disables early stopping and ensures all 5 iterations run.
 
 ### Getting Help
 - **Lambda Labs Support**: [https://lambda.ai/support](https://lambda.ai/support)
@@ -226,39 +301,43 @@ chmod +x scripts/*.py
 ```
 adversarial_attack_gfm/
 ├── scripts/
-│   ├── setup_lambda_labs.sh          # Initial setup script
-│   ├── run_lambda_labs_experiment.py # Main experiment runner
-│   ├── start_experiment.sh           # Quick start script
-│   └── monitor_experiment.sh         # Monitoring script
+│   ├── run_adversarial_training.py    # Main experiment runner (supports both datasets)
+│   ├── run_genetic_attack.py          # Standalone attack script
+│   ├── plot_results.py                # Plot generation
+│   ├── extract_attack_stats.py        # Statistics extraction
+│   └── generate_plots.py              # Plot generation
 ├── configs/
-│   ├── adversarial_training.yaml     # Main experiment config (modify for full experiment)
-│   └── attack_genetic.yaml          # Attack config
+│   ├── adversarial_training.yaml      # Main experiment config
+│   └── attack_genetic.yaml           # Attack config
+├── data/
+│   ├── raw/GUE/tf/0/                 # Transcription factor dataset
+│   └── raw/GUE/prom/prom_300_all/    # Promoter dataset
 ├── results/
-│   └── lambda_labs_experiment/       # Experiment results
-├── logs/
-│   ├── lambda_labs_experiment.log    # Main experiment log
-│   └── adversarial_training.log      # Training log
+│   └── adversarial_training/          # Experiment results
+├── plots/
+│   └── adversarial_training/          # Generated plots
 └── LAMBDA_LABS_SETUP.md              # This guide
 ```
 
 ## Experiment Workflow
 
 ### Phase 1: Quick Test (Recommended First)
-1. Launch small GPU instance (RTX 4090 or V100)
-2. Run quick experiment: `python scripts/run_lambda_labs_experiment.py --mode quick`
-3. Verify everything works correctly
-4. Check results and plots
-5. Terminate instance
+1. Launch GPU instance (H100 or smaller)
+2. Run quick test: Modify configs for fast parameters
+3. Run: `nohup python scripts/run_adversarial_training.py --dataset tf > training_output.log 2>&1 &`
+4. Verify everything works correctly
+5. Check results and plots
+6. Terminate instance
 
 ### Phase 2: Full Experiment
-1. Launch larger GPU instance (A100 recommended)
-2. Run full experiment: `python scripts/run_lambda_labs_experiment.py --mode full`
-3. Monitor progress with `./monitor_experiment.sh`
-4. Wait for completion (4-8 hours)
+1. Launch H100 GPU instance
+2. Run full experiment: `nohup python scripts/run_adversarial_training.py --dataset tf > training_output.log 2>&1 &`
+3. Monitor progress with `tail -f training_output.log`
+4. Wait for completion (2-3 hours)
 5. Download results and terminate instance
 
 ### Phase 3: Analysis
-1. Download results from `results/lambda_labs_experiment/`
+1. Download results from `results/adversarial_training/`
 2. Generate additional plots if needed
 3. Analyze results for paper preparation
 
@@ -282,3 +361,6 @@ adversarial_attack_gfm/
 2. Monitor your usage and costs regularly
 3. Keep backups of important results
 4. Use appropriate instance sizes for your workload
+5. **CRITICAL**: Follow Step 7 (Triton fix) exactly to avoid compatibility errors
+6. The system now supports both promoter and transcription factor datasets
+7. Early stopping is disabled - all 5 iterations will run as requested
