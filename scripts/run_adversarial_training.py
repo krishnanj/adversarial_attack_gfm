@@ -35,12 +35,7 @@ def main():
         logger.error(f"Configuration file not found: {config_path}")
         return 1
     
-    # Check if base model exists
-    base_model_path = "models/baseline/checkpoint_epoch_3.pt"
-    if not os.path.exists(base_model_path):
-        logger.error(f"Base model not found: {base_model_path}")
-        logger.error("Please train the baseline model first using: python scripts/run_training.py")
-        return 1
+    # Note: We now start from pretrained model, no need to check for baseline checkpoint
     
     # Check if test data exists
     test_data_path = "data/raw/GUE/prom/prom_300_all/test.csv"

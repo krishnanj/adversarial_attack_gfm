@@ -307,6 +307,9 @@ class IterativeAdversarialTrainer:
         # Load original data
         train_df, val_df, test_df = self.load_original_data()
         
+        # Store original training data for reference
+        self.original_train_df = train_df.copy()
+        
         # Check if we should start from existing model (skip iteration 0)
         start_iteration = self.config['adversarial_training'].get('start_from_iteration', 0)
         model_path = self.config['training']['base_model']

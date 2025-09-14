@@ -5,19 +5,22 @@ training:
   base_model: "zhihan1996/DNABERT-2-117M"  # Start from pretrained model
   dataset: "promoter"  # Dataset to use
   max_length: 300
-  batch_size: 16
-  # Use full dataset (remove sample limits for full experiment)
+  batch_size: 32  # Larger batch for speed
+  # Use minimal dataset for fast testing
+  train_samples: 100  # Only 100 training samples
+  val_samples: 50     # Only 50 validation samples
+  eval_samples: 50    # Only 50 evaluation samples
   learning_rate: 0.00002  # Standard LR for full retraining
-  num_epochs: 3  # Full epochs per iteration
+  num_epochs: 1  # Only 1 epoch for speed
   fine_tune: false  # Disable fine-tuning - use full retraining
-  warmup_steps: 500  # Full warmup steps
+  warmup_steps: 10  # Minimal warmup for speed
   num_classes: 2
   weight_decay: 0.01
   seed: 42
 
 # Adversarial training parameters
 adversarial_training:
-  max_iterations: 5  # Maximum number of adversarial training iterations
+  max_iterations: 3  # Maximum number of adversarial training iterations
   adversarial_ratio: 0.2  # Ratio of adversarial examples to original data
   save_adversarial_examples: true
   adversarial_data_dir: "data/adversarial/iterative_training"

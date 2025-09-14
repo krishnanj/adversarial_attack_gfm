@@ -151,16 +151,27 @@ class GeneticAdversarialAttack:
         model_path = self.config['attack']['target_model']
         self.logger.info(f"Loading model from {model_path}")
         
-        checkpoint = torch.load(model_path, map_location=self.device)
-        self.model = DNABERT2Classifier(
-            model_name="zhihan1996/DNABERT-2-117M",
-            num_classes=2,
-            freeze_encoder=True
-        )
-        if 'model_state_dict' in checkpoint:
-            self.model.load_state_dict(checkpoint['model_state_dict'])
+        # Check if it's a HuggingFace model name or a local checkpoint
+        if os.path.exists(model_path):
+            # Local checkpoint file
+            checkpoint = torch.load(model_path, map_location=self.device)
+            self.model = DNABERT2Classifier(
+                model_name="zhihan1996/DNABERT-2-117M",
+                num_classes=2,
+                freeze_encoder=True
+            )
+            if 'model_state_dict' in checkpoint:
+                self.model.load_state_dict(checkpoint['model_state_dict'])
+            else:
+                self.model.load_state_dict(checkpoint)
         else:
-            self.model.load_state_dict(checkpoint)
+            # HuggingFace model name - create untrained model
+            self.model = DNABERT2Classifier(
+                model_name=model_path,
+                num_classes=2,
+                freeze_encoder=True
+            )
+        
         self.model.to(self.device)
         self.model.eval()
         
