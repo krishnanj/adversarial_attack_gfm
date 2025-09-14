@@ -67,7 +67,14 @@ class IterativeAdversarialTrainer:
     
     def load_original_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Load original training, validation, and test data."""
-        dataset_path = f"data/raw/GUE/prom/prom_300_all"
+        dataset_name = self.config['training']['dataset']
+        
+        if dataset_name == "promoter":
+            dataset_path = f"data/raw/GUE/prom/prom_300_all"
+        elif dataset_name == "tf":
+            dataset_path = f"data/raw/GUE/tf/0"
+        else:
+            raise ValueError(f"Unsupported dataset: {dataset_name}")
         
         train_df = pd.read_csv(f"{dataset_path}/train.csv")
         val_df = pd.read_csv(f"{dataset_path}/dev.csv")

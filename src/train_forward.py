@@ -507,7 +507,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train DNABERT-2 on genomic sequences')
     parser.add_argument('--config', type=str, default='configs/train.yaml',
                        help='Path to configuration file')
-    parser.add_argument('--dataset', type=str, choices=['promoter', 'enhancer', 'splice'],
+    parser.add_argument('--dataset', type=str, choices=['promoter', 'enhancer', 'splice', 'tf'],
                        help='Override dataset in config')
     
     args = parser.parse_args()
@@ -528,6 +528,9 @@ def main():
         elif args.dataset == 'splice':
             config['dataset']['path'] = "data/raw/GUE/splice/reconstructed/train.csv"
             config['dataset']['max_length'] = 400
+        elif args.dataset == 'tf':
+            config['dataset']['path'] = "data/raw/GUE/tf/0/train.csv"
+            config['dataset']['max_length'] = 200
     
     # Set random seed
     set_seed(config['seed'])

@@ -1,49 +1,35 @@
-# Iterative Adversarial Training Configuration
-
-# Training parameters (inherited from base training config)
-training:
-  base_model: "zhihan1996/DNABERT-2-117M"  # Start from pretrained model
-  dataset: "promoter"  # Dataset to use
-  max_length: 300
-  batch_size: 16  # Standard batch size for full training
-  # Use full dataset (remove sample limits for full experiment)
-  learning_rate: 0.00002  # Standard LR for full retraining
-  num_epochs: 3  # Full epochs per iteration
-  fine_tune: false  # Disable fine-tuning - use full retraining
-  warmup_steps: 500  # Full warmup steps
-  num_classes: 2
-  weight_decay: 0.01
-  seed: 42
-
-# Adversarial training parameters
 adversarial_training:
-  max_iterations: 3  # Maximum number of adversarial training iterations
-  adversarial_ratio: 0.2  # Ratio of adversarial examples to original data
+  adversarial_data_dir: data/adversarial/iterative_training
+  adversarial_ratio: 0.2
+  convergence_threshold: 0.001
+  max_iterations: 3
   save_adversarial_examples: true
-  adversarial_data_dir: "data/adversarial/iterative_training"
-  start_from_iteration: 0  # Start from scratch, retrain baseline
-  convergence_threshold: 0.001  # Stop early if improvement < 0.1%
-
-# Model checkpointing
+  start_from_iteration: 0
+attack_config: configs/attack_genetic.yaml
 checkpointing:
-  save_dir: "models/adversarial_training"
+  monitor_metric: val_accuracy
   save_best_only: true
-  monitor_metric: "val_accuracy"
-  save_frequency: 1  # Save after each iteration
-
-# Monitoring and plotting
+  save_dir: models/adversarial_training
+  save_frequency: 1
 monitoring:
+  log_level: INFO
+  metrics_file: data/adversarial/iterative_training/training_metrics.csv
   plot_accuracy: true
-  plot_dir: "plots/adversarial_training"
+  plot_dir: plots/adversarial_training
   save_metrics: true
-  metrics_file: "data/adversarial/iterative_training/training_metrics.csv"
-  log_level: "INFO"
-
-# Attack configuration (inherits from genetic attack)
-attack_config: "configs/attack_genetic.yaml"
-
-# Output configuration
 output:
-  results_dir: "results/adversarial_training"
-  save_final_model: true
   generate_report: true
+  results_dir: results/adversarial_training
+  save_final_model: true
+training:
+  base_model: zhihan1996/DNABERT-2-117M
+  batch_size: 16
+  dataset: tf
+  fine_tune: false
+  learning_rate: 2.0e-05
+  max_length: 200
+  num_classes: 2
+  num_epochs: 3
+  seed: 42
+  warmup_steps: 500
+  weight_decay: 0.01
