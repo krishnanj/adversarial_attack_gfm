@@ -5,15 +5,12 @@ training:
   base_model: "zhihan1996/DNABERT-2-117M"  # Start from pretrained model
   dataset: "promoter"  # Dataset to use
   max_length: 300
-  batch_size: 32  # Larger batch for speed
-  # Use minimal dataset for fast testing
-  train_samples: 100  # Only 100 training samples
-  val_samples: 50     # Only 50 validation samples
-  eval_samples: 50    # Only 50 evaluation samples
+  batch_size: 16  # Standard batch size for full training
+  # Use full dataset (remove sample limits for full experiment)
   learning_rate: 0.00002  # Standard LR for full retraining
-  num_epochs: 1  # Only 1 epoch for speed
+  num_epochs: 3  # Full epochs per iteration
   fine_tune: false  # Disable fine-tuning - use full retraining
-  warmup_steps: 10  # Minimal warmup for speed
+  warmup_steps: 500  # Full warmup steps
   num_classes: 2
   weight_decay: 0.01
   seed: 42
